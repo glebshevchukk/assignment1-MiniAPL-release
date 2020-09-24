@@ -333,33 +333,55 @@ Value *LogErrorV(const char *Str) {
 // Code generation functions that you should fill in for this assignment
 // ---------------------------------------------------------------------------
 Value *ProgramAST::codegen(Function* F) {
-  // STUDENTS: FILL IN THIS FUNCTION
-  return nullptr;
+  for(auto st: Stmsts) {
+    st->codegen();
+  }
 }
 
 Value *AssignStmtAST::codegen(Function* F) {
-  // STUDENTS: FILL IN THIS FUNCTION
-  return nullptr;
+  //very iffy on this
+  Value *R = RHS->codegen();
+  Name = R;
+  Value *N = Name->codegen();
+  return N;
 }
 
 Value *ExprStmtAST::codegen(Function* F) {
-  // STUDENTS: FILL IN THIS FUNCTION
+  //this is the meaty case where we implement mkArray, neg, exponent, add, sub, reduce
   return nullptr;
 }
 
 Value *NumberASTNode::codegen(Function* F) {
-  // STUDENTS: FILL IN THIS FUNCTION
-  return nullptr;
+  return ConstantInt::get(TheContext, APInt(Val));
 }
 
 Value *VariableASTNode::codegen(Function* F) {
-  // STUDENTS: FILL IN THIS FUNCTION
-  return nullptr;
+  //from https://releases.llvm.org/6.0.0/docs/tutorial/LangImpl03.html
+  Value *V = NamedValues[Name];
+  if (!V) {
+    LogErrorV("Unknown variable name");
+  }
+  return V;
 }
 
 Value *CallASTNode::codegen(Function* F) {
-  // STUDENTS: FILL IN THIS FUNCTION
-  return nullptr;
+  // adapted from https://releases.llvm.org/6.0.0/docs/tutorial/LangImpl03.html
+  Function *CalleeF = TheModule->getFunction(Callee);
+  if (!CalleeF)
+    return LogErrorV("Unknown function referenced");
+
+  // If argument mismatch error.
+  if (CalleeF->arg_size() != Args.size())
+    return LogErrorV("Incorrect # arguments passed");
+
+  std::vector<Value *> ArgsV;
+  for (unsigned i = 0, e = Args.size(); i != e; ++i) {
+    ArgsV.push_back(Args[i]->codegen());
+    if (!ArgsV.back())
+      return nullptr;
+  }
+
+  return Builder.CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
 // ---------------------------------------------------------------------------
